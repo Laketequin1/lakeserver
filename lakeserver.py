@@ -57,7 +57,7 @@ class Server:
         connected = True
         while connected:
             
-            self.send_message(f"@{self.data}", client_conn) # Sends message with server data
+            self.send_message(f"{self.data}", client_conn) # Sends message with server data
             
             client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
             
