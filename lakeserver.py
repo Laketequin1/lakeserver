@@ -2,6 +2,8 @@ import socket, threading, ast # Imports for client and server
 
 class Server:
     
+    ##### -- Init -- #####
+    
     def __init__(self, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
         
         self.PORT = port # Port
@@ -14,16 +16,26 @@ class Server:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
         self.server.bind(self.ADDR) # Binds address to server
         
-        self.data = {'commands':[], 'data':[]} # Stores the commands and data of every connection, will be sent to all computers
+        self.data = {'commands':[], 'data':""} # Stores the commands and data that will be sent to all computers
+        self.client_data = {} # Stores the data recieved from every connection
+        self.active_clients = 0 # Number of active client connections
 
-        print(f"[INFO] Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
-        print(f"[INFO] Server PORT: {self.PORT}") # Prints the PORT the server is running on
-        print(f"[INFO] Server status: Ready") # Prints that server is ready to start
+        self.enable_outputs(True) # Outputs active
         
+        self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
+        self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
+        self.info(f"Server status: Ready") # Prints that server is ready to start
+    
+    ##### -- Server Handling -- #####
+    
     def start(self):
+        thread = threading.Thread(target=self.connection_handler) # Creates a new thread for this specific connection, with handle_client()
+        thread.start() # Starts thread
+    
+    def connection_handler(self):
         self.server.listen() # Activates server, and will listen for pings
         
-        print(f"[INFO] Server status: Active") # Prints that server is active
+        self.info(f"Server status: Active") # Prints that server is active
         
         while True: # Continually adds new connections
             
@@ -32,7 +44,11 @@ class Server:
             thread = threading.Thread(target=self.handle_client, args=(client_conn, client_addr)) # Creates a new thread for this specific connection, with handle_client()
             thread.start() # Starts thread
             
-            print(f"[INFO] Active threads: {threading.activeCount() - 1}") # prints how many connections we have on the server, from the amount of threads runnning
+            self.active_clients += 1 # One more active connection
+            
+            self.info(f"Active threads: {self.active_clients}") # Prints how many connections we have on the server, from the amount of threads runnning
+    
+    ##### -- Client Handling -- #####
     
     def recieve_message(self, client_conn): # Recieves massage from a client
 	
@@ -40,7 +56,7 @@ class Server:
         
         if client_message_length: # Makes sure that there is a message
             client_message_length = int(client_message_length)
-            client_message = self.conn.recv(client_message_length).decode(self.FORMAT) # Waits for message and decodes from format
+            client_message = client_conn.recv(client_message_length).decode(self.FORMAT) # Waits for message and decodes from format
             return client_message
     
     def send_message(self, message, conn): # Send message to a client
@@ -54,9 +70,7 @@ class Server:
     
     def handle_client(self, client_conn, client_addr): # Given a thread for each connection, gets the clients IP
         
-        clients_data = [] # Stores data recieved
-        
-        self.data['data'].append({client_addr:[]}) # Adds this client to the data list
+        self.client_data[client_addr] = "" # Adds this client to the client_data list with no data
         
         connected = True
         while connected:
@@ -70,14 +84,71 @@ class Server:
                 for command in client_message['commands']: # Go through every command
                     if command == "disconnect": # If command disconnect
                         connected = False # End thread
-                    
-                for client_data_section in client_message['data']: # For each piece of data
-                    client_addr[client_data_section.key()] = client_data_section.value() # Store data in its spcific IP                
+                        
+                self.client_data[client_addr] = client_message['data'] # Store data in its spcific IP                
             
-            print(f"Data: {client_message}") # Prints client message
+            self.info(f"Message: {client_message}") # Prints client message
             
-        del self.data['data'][client_addr] # Remove persons data from server data
+        del self.client_data[client_addr] # Remove persons data from server data
+        self.active_clients -= 1 # Remove one number from active connections
         client_conn.close() # Closes the connection between the client
+
+    ### -- Print -- ###
+    
+    def warn(self, message): # Displays a warning message (ususally errors)
+        if self.show_warnings == True: # If warning messages active
+            print(f"[WARNING] {message}") # Print warning message
+                
+    def info(self, message): # Displays an informational message
+        if self.show_info == True: # If info messages active
+            print(f"[INFO] {message}") # Print warning message
+    
+    ##### -- Set -- #####
+    
+    def set_data(self, data): # Set the data being sent
+        self.data[data] = str(data)
+        
+    def set_command(self):
+        pass
+    
+    def enable_outputs(self, boolean):    
+        if type(boolean) == bool:
+            self.show_warnings = boolean
+            self.show_info = boolean
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_outputs")
+        
+    def enable_warnings(self, boolean):
+        if type(boolean) == bool:
+            self.show_warnings = boolean
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_warnings")
+        
+    def enable_info(self, boolean):
+        if type(boolean) == bool:
+            self.show_info = boolean
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_info")
+    
+    ##### -- Get -- #####
+    
+    def get_server_ip(self):
+        return self.SERVER_IP
+    
+    def get_server_port(self):
+        return self.PORT
+    
+    def get_number_of_active_clients(self):
+        return self.active_clients
+    
+    def get_warnings_enabled(self):
+        return self.show_warnings
+    
+    def get_info_enabled(self):
+        return self.show_info
+    
+    def get_warnings_enabled(self):
+        return self.show_warnings
 
 
 class Client:
