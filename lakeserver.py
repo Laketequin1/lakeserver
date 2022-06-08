@@ -15,11 +15,15 @@ class Server:
         self.server.bind(self.ADDR) # Binds address to server
         
         self.data = {'commands':[], 'data':[]} # Stores the commands and data of every connection, will be sent to all computers
-    
+
+        print(f"[INFO] Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
+        print(f"[INFO] Server PORT: {self.PORT}") # Prints the PORT the server is running on
+        print(f"[INFO] Server status: Ready") # Prints that server is ready to start
+        
     def start(self):
         self.server.listen() # Activates server, and will listen for pings
         
-        print(f"Server is listening on {self.SERVER_IP}") # Prints the IP we are running on
+        print(f"[INFO] Server status: Active") # Prints that server is active
         
         while True: # Continually adds new connections
             
@@ -72,8 +76,9 @@ class Server:
             
             print(f"Data: {client_message}") # Prints client message
             
-        del self.data['data'].key(client_addr) # Remove persons data from server data
+        del self.data['data'][client_addr] # Remove persons data from server data
         client_conn.close() # Closes the connection between the client
+
 
 class Client:
     def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
@@ -89,7 +94,8 @@ class Client:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
         self.server.bind(self.ADDR) # Binds address to server
         
-        self.data = {'commands':[], 'data':[]} # Stores the commands and data being sent to server    
+        self.data = {'commands':[], 'data':[]} # Stores the commands and data being sent to server
 
 
 main_server = Server(5050)
+main_server.start()
