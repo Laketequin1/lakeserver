@@ -106,6 +106,99 @@ class Server:
     ##### -- Set -- #####
     
     def set_data(self, data): # Set the data being sent
+        self.data['data'] = str(data)
+        
+    def add_command(self, command): # Add the data being sent
+        self.data['commands'].append(str(command))
+    
+    def remove_all_command(self, command): # Add the data being sent
+        self.data['commands'] = []
+    
+    def enable_outputs(self, boolean): # Set outputs for warnings and info to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_warnings = boolean # Warnings active/inactive
+            self.show_info = boolean # Info active/inactive
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_outputs") # Error as type of input is not bool
+        
+    def enable_warnings(self, boolean): # Set outputs for warnings to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_warnings = boolean # Warnings active/inactive
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_warnings") # Error as type of input is not bool
+        
+    def enable_info(self, boolean): # Set outputs for warnings to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_info = boolean # Info active/inactive
+        else:
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_info") # Error as type of input is not bool
+    
+    ##### -- Get -- #####
+    
+    def get_data(self): # Return server data
+        return self.data['data']
+    
+    def get_commands(self): # Return server commands
+        return self.data['commands']
+    
+    def get_client_data(self): # Return client data dict
+        return self.client_data
+    
+    def get_server_ip(self): # Return server IP
+        return self.SERVER_IP
+    
+    def get_server_port(self): # Return server PORT
+        return self.PORT
+    
+    def get_number_of_active_clients(self): # Return number of clients connected to the server
+        return self.active_clients
+    
+    def get_all_outputs_enabled(self): # Return True if warnings and info are both enabled
+        if self.show_info and self.show_warnings: # If both warning and info enabled
+            return True # Return True
+        return False # Else return False
+    
+    def get_info_enabled(self): # Return if info enabled or not
+        return self.show_info
+    
+    def get_warnings_enabled(self): # Return if info enabled or not
+        return self.show_warnings
+
+
+class Client:
+    
+    ##### -- Init -- #####
+    
+    def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8       
+        
+        self.SERVER_IP = server_ip # The IP of the host (public IP for non-lan, private IPV4 for lan)
+        self.PORT = port # Port
+        self.HEADER = header # Size of header before data sent
+        self.FORMAT = format # Format of text being sent
+        
+        self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
+        self.ADDR = (self.SERVER_IP, self.PORT) #Server address
+        
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
+        self.server.bind(self.ADDR) # Binds address to server
+        
+        self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
+
+    ### -- Server Handling -- ###
+    
+    ### -- Print -- ###
+    
+    def warn(self, message): # Displays a warning message (ususally errors)
+        if self.show_warnings == True: # If warning messages active
+            print(f"[WARNING] {message}") # Print warning message
+                
+    def info(self, message): # Displays an informational message
+        if self.show_info == True: # If info messages active
+            print(f"[INFO] {message}") # Print warning message
+    
+    ##### -- Set -- #####
+    
+    def set_data(self, data): # Set the data being sent
         self.data[data] = str(data)
         
     def set_command(self):
@@ -132,40 +225,34 @@ class Server:
     
     ##### -- Get -- #####
     
-    def get_server_ip(self):
+    def get_data(self): # Return server data
+        return self.data['data']
+    
+    def get_commands(self): # Return server commands
+        return self.data['commands']
+    
+    def get_server_data(self): # Return client data dict
+        return self.client_data
+    
+    def get_server_ip(self): # Return server IP
         return self.SERVER_IP
     
-    def get_server_port(self):
+    def get_server_port(self): # Return server PORT
         return self.PORT
     
-    def get_number_of_active_clients(self):
+    def get_number_of_active_clients(self): # Return number of clients connected to the server
         return self.active_clients
     
-    def get_warnings_enabled(self):
-        return self.show_warnings
+    def get_all_outputs_enabled(self): # Return True if warnings and info are both enabled
+        if self.show_info and self.show_warnings: # If both warning and info enabled
+            return True # Return True
+        return False # Else return False
     
-    def get_info_enabled(self):
+    def get_info_enabled(self): # Return if info enabled or not
         return self.show_info
     
-    def get_warnings_enabled(self):
+    def get_warnings_enabled(self): # Return if info enabled or not
         return self.show_warnings
-
-
-class Client:
-    def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
-        
-        self.SERVER_IP = server_ip # The IP of the host (public IP for non-lan, private IPV4 for lan)
-        self.PORT = port # Port
-        self.HEADER = header # Size of header before data sent
-        self.FORMAT = format # Format of text being sent
-        
-        self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
-        self.ADDR = (self.SERVER_IP, self.PORT) #Server address
-        
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
-        self.server.bind(self.ADDR) # Binds address to server
-        
-        self.data = {'commands':[], 'data':[]} # Stores the commands and data being sent to server
 
 
 main_server = Server(5050)
