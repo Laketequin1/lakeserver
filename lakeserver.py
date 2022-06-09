@@ -108,10 +108,10 @@ class Server:
     def set_data(self, data): # Set the data being sent
         self.data['data'] = str(data)
         
-    def add_command(self, command): # Add the data being sent
+    def add_command(self, command): # Add a command being sent to clients
         self.data['commands'].append(str(command))
     
-    def remove_all_command(self, command): # Add the data being sent
+    def remove_all_commands(self): # Remove all commands that will be sent to computers
         self.data['commands'] = []
     
     def enable_outputs(self, boolean): # Set outputs for warnings and info to active or inactive
@@ -176,15 +176,23 @@ class Client:
         self.HEADER = header # Size of header before data sent
         self.FORMAT = format # Format of text being sent
         
-        self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
-        self.ADDR = (self.SERVER_IP, self.PORT) #Server address
-        
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
-        self.server.bind(self.ADDR) # Binds address to server
+        self.CLIENT_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
+        self.ADDR = (self.SERVER_IP, self.PORT) # Server address
         
         self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
+        self.server_data = {'commands':[], 'data':""} # Stores the commands and data recieved from the server
 
+        self.enable_outputs(True) # Outputs active
+        
+        self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
+        self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
+        self.info(f"Client status: Ready") # Prints that client is ready to start
+        
     ### -- Server Handling -- ###
+    
+    def connect(self):
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Connects client to INET, streaming data
+        client.connect(self.ADDR) # Binds connected address to above
     
     ### -- Print -- ###
     
@@ -199,29 +207,32 @@ class Client:
     ##### -- Set -- #####
     
     def set_data(self, data): # Set the data being sent
-        self.data[data] = str(data)
+        self.data['data'] = str(data)
         
-    def set_command(self):
-        pass
+    def add_command(self, command): # Add a command being sent to clients
+        self.data['commands'].append(str(command))
     
-    def enable_outputs(self, boolean):    
-        if type(boolean) == bool:
-            self.show_warnings = boolean
-            self.show_info = boolean
+    def remove_all_commands(self): # Remove all commands that will be sent to server
+        self.data['commands'] = []
+    
+    def enable_outputs(self, boolean): # Set outputs for warnings and info to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_warnings = boolean # Warnings active/inactive
+            self.show_info = boolean # Info active/inactive
         else:
-            self.warn(f"Error: Bool {boolean} not valid for setting enable_outputs")
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_outputs") # Error as type of input is not bool
         
-    def enable_warnings(self, boolean):
-        if type(boolean) == bool:
-            self.show_warnings = boolean
+    def enable_warnings(self, boolean): # Set outputs for warnings to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_warnings = boolean # Warnings active/inactive
         else:
-            self.warn(f"Error: Bool {boolean} not valid for setting enable_warnings")
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_warnings") # Error as type of input is not bool
         
-    def enable_info(self, boolean):
-        if type(boolean) == bool:
-            self.show_info = boolean
+    def enable_info(self, boolean): # Set outputs for warnings to active or inactive
+        if type(boolean) == bool: # If input bool
+            self.show_info = boolean # Info active/inactive
         else:
-            self.warn(f"Error: Bool {boolean} not valid for setting enable_info")
+            self.warn(f"Error: Bool {boolean} not valid for setting enable_info") # Error as type of input is not bool
     
     ##### -- Get -- #####
     
@@ -231,7 +242,7 @@ class Client:
     def get_commands(self): # Return server commands
         return self.data['commands']
     
-    def get_server_data(self): # Return client data dict
+    def get_client_data(self): # Return client data dict
         return self.client_data
     
     def get_server_ip(self): # Return server IP
