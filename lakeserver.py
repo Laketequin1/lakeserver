@@ -5,7 +5,6 @@ class Server:
     ##### -- Init -- #####
     
     def __init__(self, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
-        
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
         self.FORMAT = format # Format of text being sent
@@ -38,7 +37,6 @@ class Server:
         self.info(f"Server status: Active") # Prints that server is active
         
         while True: # Continually adds new connections
-            
             client_conn, client_addr = self.server.accept() # Waits for a new connection to join the server and gets IP
             
             thread = threading.Thread(target=self.handle_client, args=(client_conn, client_addr)) # Creates a new thread for this specific connection, with handle_client()
@@ -51,36 +49,39 @@ class Server:
     ##### -- Client Handling -- #####
     
     def recieve_message(self, client_conn): # Recieves massage from a client
-	
         client_message_length = client_conn.recv(self.HEADER).decode(self.FORMAT) # Waits for message lenght of next message and decodes from format
         
         if client_message_length: # Makes sure that there is a message
             client_message_length = int(client_message_length)
             client_message = client_conn.recv(client_message_length).decode(self.FORMAT) # Waits for message and decodes from format
+            client_message = self.eval_message(client_message) # Converts data string into dict
             return client_message
     
-    def send_message(self, message, conn): # Send message to a client
-	
+    def send_message(self, message, client_conn): # Send message to a client
         encoded_message = message.encode(self.FORMAT) # Encodes message
         encoded_message_length = len(encoded_message) # Gets encoded message length
         header_message = str(encoded_message_length).encode(self.FORMAT) # Set header message to the string of the lenght and incode with format
         header_message += b' ' * (self.HEADER - len(header_message)) # Adds blanks to the end to make the header_message the right size
-        conn.send(header_message) # Header sends the message length of main message
-        conn.send(encoded_message) # Sends the message in encoded format
+        client_conn.send(header_message) # Header sends the message length of main message
+        client_conn.send(encoded_message) # Sends the message in encoded format
+    
+    def eval_message(self, message): # Changes string recieved to a dict
+        try:
+            return ast.literal_eval(message) # Converts data string into dict
+        except Exception:
+            self.warn(f"Error: Unable to eval message recieved") # If error
+            return "" # Return empty
     
     def handle_client(self, client_conn, client_addr): # Given a thread for each connection, gets the clients IP
-        
         self.client_data[client_addr] = "" # Adds this client to the client_data list with no data
         
         connected = True
         while connected:
-            
             self.send_message(f"{self.data}", client_conn) # Sends message with server data
             
             client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
             
             if client_message: # If message recieved has a value
-                
                 for command in client_message['commands']: # Go through every command
                     if command == "disconnect": # If command disconnect
                         connected = False # End thread
@@ -97,11 +98,11 @@ class Server:
     
     def warn(self, message): # Displays a warning message (ususally errors)
         if self.show_warnings == True: # If warning messages active
-            print(f"[WARNING] {message}") # Print warning message
+            print(f"[SERVER WARNING] {message}") # Print warning message
                 
     def info(self, message): # Displays an informational message
         if self.show_info == True: # If info messages active
-            print(f"[INFO] {message}") # Print warning message
+            print(f"[SERVER INFO] {message}") # Print warning message
     
     ##### -- Set -- #####
     
@@ -169,8 +170,7 @@ class Client:
     
     ##### -- Init -- #####
     
-    def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8       
-        
+    def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
         self.SERVER_IP = server_ip # The IP of the host (public IP for non-lan, private IPV4 for lan)
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
@@ -180,29 +180,86 @@ class Client:
         self.ADDR = (self.SERVER_IP, self.PORT) # Server address
         
         self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
-        self.server_data = {'commands':[], 'data':""} # Stores the commands and data recieved from the server
+        self.server_data = "" # Stores the data recieved from the server
 
+        self.do_disconnect = False # Not disconnected
         self.enable_outputs(True) # Outputs active
         
         self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
         self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
         self.info(f"Client status: Ready") # Prints that client is ready to start
-        
+    
+    ### -- Client Handling -- ###
+    
+    def connect(self): # Connect to server
+        self.server_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Connects client to INET, streaming data
+        self.server_conn.connect(self.ADDR) # Binds connected address to above
+        thread = threading.Thread(target=self.handle_server) # Creates a new thread for this specific connection, with handle_server()
+        thread.start() # Starts thread
+    
     ### -- Server Handling -- ###
     
-    def connect(self):
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Connects client to INET, streaming data
-        client.connect(self.ADDR) # Binds connected address to above
+    def recieve_message(self): # Recieves massage from a client
+        client_message_length = self.server_conn.recv(self.HEADER).decode(self.FORMAT) # Waits for message lenght of next message and decodes from format
+        
+        if client_message_length: # Makes sure that there is a message
+            client_message_length = int(client_message_length)
+            client_message = self.server_conn.recv(client_message_length).decode(self.FORMAT) # Waits for message and decodes from format
+            client_message = self.eval_message(client_message) # Converts data string into dict
+            return client_message
+        return "" # If no message return nothing
+    
+    def send_message(self, message): # Send message to a client
+        encoded_message = message.encode(self.FORMAT) # Encodes message
+        encoded_message_length = len(encoded_message) # Gets encoded message length
+        header_message = str(encoded_message_length).encode(self.FORMAT) # Set header message to the string of the lenght and incode with format
+        header_message += b' ' * (self.HEADER - len(header_message)) # Adds blanks to the end to make the header_message the right size
+        self.server_conn.send(header_message) # Header sends the message length of main message
+        self.server_conn.send(encoded_message) # Sends the message in encoded format
+    
+    def eval_message(self, message): # Changes string recieved to a dict
+        try:
+            return ast.literal_eval(message) # Converts data string into dict
+        except Exception:
+            self.warn(f"Error: Unable to eval message recieved") # If error
+            return "" # Return empty
+    
+    def handle_server(self):
+        connected = True
+        while connected:
+            server_message = self.recieve_message() # Waits to recieve message
+            
+            if server_message: # If message recieved has a value
+                for command in server_message['commands']: # Go through every command
+                    if command == "disconnect": # If command disconnect
+                        self.add_command("disconnect") # Add command to server
+                        connected = False # End thread
+                        
+                self.server_data = server_message['data'] # Store data in its spcific IP                
+            
+            if self.do_disconnect: # If client disconnecting
+                self.add_command("disconnect") # Add command to server
+                connected = False # End thread
+                print("weitd")
+            
+            self.info(f"Message: {server_message}") # Prints server message
+            
+            self.send_message(f"{self.data}") # Sends message data
     
     ### -- Print -- ###
     
     def warn(self, message): # Displays a warning message (ususally errors)
         if self.show_warnings == True: # If warning messages active
-            print(f"[WARNING] {message}") # Print warning message
+            print(f"[CLIENT WARNING] {message}") # Print warning message
                 
     def info(self, message): # Displays an informational message
         if self.show_info == True: # If info messages active
-            print(f"[INFO] {message}") # Print warning message
+            print(f"[CLIENT INFO] {message}") # Print warning message
+    
+    ##### -- Action -- #####
+    
+    def disconnect(self): # Disconnect from server
+        self.do_disconnect = True # Set disconnect to true
     
     ##### -- Set -- #####
     
@@ -267,4 +324,18 @@ class Client:
 
 
 main_server = Server(5050)
+main_server.enable_info(False)
 main_server.start()
+
+import time
+time.sleep(0.5)
+
+ip = input("IP: ")
+
+client1 = Client(ip, 5050)
+client1.enable_info(False)
+client1.connect()
+
+time.sleep(5)
+
+client1.disconnect()
