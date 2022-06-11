@@ -4,7 +4,7 @@ class Server:
     
     ##### -- Init -- #####
     
-    def __init__(self, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
+    def __init__(self, port, outputs_enabled=True, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
         self.FORMAT = format # Format of text being sent
@@ -12,24 +12,38 @@ class Server:
         self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
         self.ADDR = (self.SERVER_IP, self.PORT) #Server address
         
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
-        self.server.bind(self.ADDR) # Binds address to server
+        self.active = False # Server currently not active
         
-        self.data = {'commands':[], 'data':""} # Stores the commands and data that will be sent to all computers
-        self.client_data = {} # Stores the data recieved from every connection
-        self.active_clients = 0 # Number of active client connections
-
-        self.enable_outputs(True) # Outputs active
+        self.enable_outputs(outputs_enabled) # Outputs active
         
-        self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
-        self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
-        self.info(f"Server status: Ready") # Prints that server is ready to start
-    
     ##### -- Server Handling -- #####
     
     def start(self):
-        thread = threading.Thread(target=self.connection_handler) # Creates a new thread for this specific connection, with handle_client()
-        thread.start() # Starts thread
+        if not self.active:
+            self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
+            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allows server to be reused after shutdown
+            self.server.bind(self.ADDR) # Binds address to server
+            
+            self.data = {'commands':[], 'data':""} # Stores the commands and data that will be sent to all computers
+            self.client_data = {} # Stores the data recieved from every connection
+            self.active_clients = 0 # Number of active client connections
+            
+            self.active = True # Server currently active
+            self.do_shutdown = False # Set shutdown to False
+            self.accepting_clients = False # Not accepting clients
+            
+            self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
+            self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
+            self.info(f"Server status: Ready") # Prints that server is ready to start
+    
+    def accept_clients(self):
+        if not self.shutdown and not self.accepting_clients: # If server not shutting down and server not accepting clients
+            self.connection_handler_thread = threading.Thread(target=self.connection_handler) # Creates a new thread for this specific connection, with handle_client()
+            self.connection_handler_thread.start() # Starts thread
+        elif self.shutdown:
+            self.warn(f"Error: Cannot accept clients because server is shutting down") # Error
+        else:
+            self.warn(f"Error: Cannot accept clients because server is already accepting clients") # Error
     
     def connection_handler(self):
         self.server.listen() # Activates server, and will listen for pings
@@ -45,6 +59,12 @@ class Server:
             self.active_clients += 1 # One more active connection
             
             self.info(f"Active threads: {self.active_clients}") # Prints how many connections we have on the server, from the amount of threads runnning
+    
+    def handle_shutdown(self):
+        if self.active_clients == 0: # If no more clients connected
+            self.server.shutdown(socket.SHUT_RDWR) # Shutdown server
+            self.server.close() # Close server
+            self.active = False # Server closed
     
     ##### -- Client Handling -- #####
     
@@ -77,6 +97,11 @@ class Server:
         
         connected = True
         while connected:
+            if self.do_shutdown: # If server shutting down
+                self.add_command("disconnect") # Add command to data
+                connected = False # End thread
+                print("server dc'd")
+            
             self.send_message(f"{self.data}", client_conn) # Sends message with server data
             
             client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
@@ -93,7 +118,19 @@ class Server:
         del self.client_data[client_addr] # Remove persons data from server data
         self.active_clients -= 1 # Remove one number from active connections
         client_conn.close() # Closes the connection between the client
-
+    
+    ##### -- Action -- #####
+    
+    def shutdown(self): # Disconnect clients and shutdown server
+        self.connection_handler_thread.join() # End thread that accepts new people to join
+        self.do_shutdown = True # Set shutdown to true
+        
+        self.info("Status: Starting Shutdown") # Prints message letting user know shutdown has started
+        
+        thread = threading.Thread(target=self.handle_shutdown) # Creates a new thread for this specific connection, with handle_client()
+        thread.start() # Starts thread
+        
+    
     ### -- Print -- ###
     
     def warn(self, message): # Displays a warning message (ususally errors)
@@ -145,10 +182,10 @@ class Server:
     def get_client_data(self): # Return client data dict
         return self.client_data
     
-    def get_server_ip(self): # Return server IP
+    def get_ip(self): # Return server IP
         return self.SERVER_IP
     
-    def get_server_port(self): # Return server PORT
+    def get_port(self): # Return server PORT
         return self.PORT
     
     def get_number_of_active_clients(self): # Return number of clients connected to the server
@@ -170,7 +207,7 @@ class Client:
     
     ##### -- Init -- #####
     
-    def __init__(self, server_ip, port, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
+    def __init__(self, server_ip, port, outputs_enabled=True, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
         self.SERVER_IP = server_ip # The IP of the host (public IP for non-lan, private IPV4 for lan)
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
@@ -183,7 +220,7 @@ class Client:
         self.server_data = "" # Stores the data recieved from the server
 
         self.do_disconnect = False # Not disconnected
-        self.enable_outputs(True) # Outputs active
+        self.enable_outputs(outputs_enabled) # Outputs active
         
         self.info(f"Server IP: {self.SERVER_IP}") # Prints the IP the server is running on
         self.info(f"Server PORT: {self.PORT}") # Prints the PORT the server is running on
@@ -240,11 +277,16 @@ class Client:
             if self.do_disconnect: # If client disconnecting
                 self.add_command("disconnect") # Add command to server
                 connected = False # End thread
-                print("weitd")
+                print("dc'd")
             
             self.info(f"Message: {server_message}") # Prints server message
             
             self.send_message(f"{self.data}") # Sends message data
+    
+    ##### -- Action -- #####
+    
+    def disconnect(self): # Disconnect from server
+        self.do_disconnect = True # Set disconnect to true
     
     ### -- Print -- ###
     
@@ -255,11 +297,6 @@ class Client:
     def info(self, message): # Displays an informational message
         if self.show_info == True: # If info messages active
             print(f"[CLIENT INFO] {message}") # Print warning message
-    
-    ##### -- Action -- #####
-    
-    def disconnect(self): # Disconnect from server
-        self.do_disconnect = True # Set disconnect to true
     
     ##### -- Set -- #####
     
@@ -302,6 +339,9 @@ class Client:
     def get_client_data(self): # Return client data dict
         return self.client_data
     
+    def get_ip(self): # Return client IP
+        return self.CLIENT_IP
+    
     def get_server_ip(self): # Return server IP
         return self.SERVER_IP
     
@@ -324,18 +364,15 @@ class Client:
 
 
 main_server = Server(5050)
-main_server.enable_info(False)
 main_server.start()
+main_server.accept_clients()
 
 import time
 time.sleep(0.5)
 
-ip = input("IP: ")
-
-client1 = Client(ip, 5050)
-client1.enable_info(False)
+client1 = Client(main_server.get_ip(), 5050)
 client1.connect()
 
 time.sleep(5)
 
-client1.disconnect()
+main_server.shutdown()
