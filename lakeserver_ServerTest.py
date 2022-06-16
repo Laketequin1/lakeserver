@@ -229,17 +229,6 @@ class Server(SockStreamConnection):
     
     def get_number_of_active_clients(self): # Return number of clients connected to the server
         return self.active_clients
-    
-    def get_all_outputs_enabled(self): # Return True if warnings and info are both enabled
-        if self.show_info and self.show_warnings: # If both warning and info enabled
-            return True # Return True
-        return False # Else return False
-    
-    def get_info_enabled(self): # Return if info enabled or not
-        return self.show_info
-    
-    def get_warnings_enabled(self): # Return if info enabled or not
-        return self.show_warnings
 
 
 class Client(SockStreamConnection):
