@@ -266,7 +266,13 @@ class Client(SockStreamConnection):
     def connect(self): # Connect to server
         if not self.active: # If not already connected
             self.server_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Connects client to INET, streaming data
-            self.server_conn.connect(self.ADDR) # Binds connected address to above
+            
+            try:
+                self.server_conn.connect(self.ADDR) # Binds connected address to above
+            except ConnectionRefusedError: # Could not connect to server as it will not accept client
+                self.warn(f"Error: Could not connect to server as it is not accepting clients") # Error
+            except TimeoutError: # Server does not exist
+                self.warn(f"Error: Could not connect to server as it does not exist") # Error
             
             self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
             self.server_data = "" # Stores the data recieved from the server
