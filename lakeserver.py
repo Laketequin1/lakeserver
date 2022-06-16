@@ -190,7 +190,11 @@ class Server(SockStreamConnection):
             
             self.send_message(f"{self.data}", client_conn) # Sends message with server data
             
-            client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
+            try:
+                client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
+            except ConnectionAbortedError: # If trying to recieve message returns it is not active
+                self.warn("Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
+                connected = False # End thread
             
             if client_message: # If message recieved has a value
                 for command in client_message['commands']: # Go through every command
