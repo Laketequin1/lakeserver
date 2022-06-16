@@ -11,7 +11,7 @@ class SockStreamConnection:
     def eval_message(self, message): # Changes string recieved to a dict
         try:
             return ast.literal_eval(message) # Converts data string into dict
-        except Exception:
+        except ValueError:
             self.warn(f"Error: Unable to eval message recieved") # If error
             return "" # Return empty
 
@@ -321,7 +321,7 @@ class Client(SockStreamConnection):
                         
                         self.info(f"Status: Disconnecting") # Print client is disconnecting
                         
-                self.server_data = server_message['data'] # Store data in its spcific IP                
+                self.server_data = self.eval_message(server_message['data']) # Store server data as a dict
             
             if self.do_disconnect: # If client disconnecting
                 self.add_command("disconnect") # Add command to server
