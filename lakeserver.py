@@ -100,6 +100,8 @@ class Server(SockStreamConnection):
     def start(self, start_accept_clients=True):
         if not self.active:
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
+            self.server.connect((self.SERVER_IP, self.PORT)) # Connect to possible existing server
+            self.server.close() # Close possible existing server
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allows server to be reused after shutdown
             self.server.bind(self.ADDR) # Binds address to server
             
