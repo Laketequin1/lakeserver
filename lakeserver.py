@@ -146,7 +146,7 @@ class Server(SockStreamConnection):
             
             self.active_clients += 1 # One more active connection
             
-            self.info(f"Active Clients: {self.active_clients}") # Prints how many connections we have on the server
+            self.info(f"Client Event: Connected") # Prints client =connected
         
         self.info(f"New Connections: Deny") # Print that connection handler shutdown
     
@@ -188,11 +188,15 @@ class Server(SockStreamConnection):
                 self.add_command("disconnect") # Add command to data
                 connected = False # End thread
             
-            self.send_message(f"{self.data}", client_conn) # Sends message with server data
+            try:
+                self.send_message(f"{self.data}", client_conn) # Sends message with server data
+            except ConnectionResetError: # If trying to send message returns it is not active
+                self.warn("Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
+                connected = False # End thread
             
             try:
                 client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
-            except ConnectionAbortedError: # If trying to recieve message returns it is not active
+            except ConnectionResetError: # If trying to recieve message returns it is not active
                 self.warn("Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
                 connected = False # End thread
             
@@ -206,7 +210,7 @@ class Server(SockStreamConnection):
         del self.client_data[client_addr] # Remove persons data from server data
         self.active_clients -= 1 # Remove one number from active connections
         
-        self.info(f"Active Clients: {self.active_clients}") # Prints how many connections we have on the server
+        self.info(f"Client Event: Disconnected") # Prints client disconnected
         
         client_conn.close() # Closes the connection between the client
     
@@ -300,6 +304,7 @@ class Client(SockStreamConnection):
     def handle_server(self):
         connected = True
         while connected:
+            
             server_message = self.recieve_message() # Waits to recieve message
             
             if server_message: # If message recieved has a value
