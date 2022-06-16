@@ -337,7 +337,10 @@ class Client(SockStreamConnection):
     
     ##### -- Get -- #####
     
-    def get_commands(self): # Return server commands
+    def get_server_data(self): # Return server data recieved
+        return self.server_data
+    
+    def get_commands(self): # Return client commands
         return self.data['commands']
     
     def get_ip(self): # Return client IP
@@ -348,6 +351,3 @@ class Client(SockStreamConnection):
     
     def get_server_port(self): # Return server PORT
         return self.PORT
-    
-    def get_number_of_active_clients(self): # Return number of clients connected to the server
-        return self.active_clients
