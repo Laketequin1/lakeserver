@@ -8,12 +8,14 @@ class SockStreamConnection:
     
     ##### -- Message Handling -- #####
     
-    def eval_message(self, message): # Changes string recieved to a dict
-        try:
-            return ast.literal_eval(message) # Converts data string into dict
-        except ValueError:
-            self.warn(f"Error: Unable to eval message recieved") # If error
-            return "" # Return empty
+    def eval_message(self, message): # Changes string recieved to a dict\
+        if message:
+            try:
+                return ast.literal_eval(message) # Converts data string into dict
+            except ValueError:
+                self.warn(f"Error: Unable to eval message recieved") # If error
+                pass # Continue to return empty
+        return "" # Return empty
 
     ### -- Print -- ###
     
@@ -100,8 +102,6 @@ class Server(SockStreamConnection):
     def start(self, start_accept_clients=True):
         if not self.active:
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
-            self.server.connect((self.SERVER_IP, self.PORT)) # Connect to possible existing server
-            self.server.close() # Close possible existing server
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allows server to be reused after shutdown
             self.server.bind(self.ADDR) # Binds address to server
             
@@ -126,6 +126,7 @@ class Server(SockStreamConnection):
     def accept_clients(self):
         if not self.do_shutdown and not self.accepting_clients: # If server not shutting down and server not accepting clients
             self.connection_handler_thread = threading.Thread(target=self.connection_handler) # Creates a new thread for this specific connection, with handle_client()
+            self.connection_handler_thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
             self.connection_handler_thread.start() # Starts thread
         elif self.shutdown:
             self.warn(f"Error: Cannot accept clients because server is shutting down") # Error
@@ -144,6 +145,7 @@ class Server(SockStreamConnection):
                 break # Exit connection handler
             
             thread = threading.Thread(target=self.handle_client, args=(client_conn, client_addr)) # Creates a new thread for this specific connection, with handle_client()
+            thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
             thread.start() # Starts thread
             
             self.active_clients += 1 # One more active connection
@@ -224,6 +226,7 @@ class Server(SockStreamConnection):
         self.info(f"Status: Starting Shutdown") # Prints message letting user know shutdown has started
         
         thread = threading.Thread(target=self.handle_shutdown) # Creates a new thread for this specific connection, with handle_client()
+        thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
         thread.start() # Starts thread
     
     ##### -- Get -- #####
@@ -285,6 +288,7 @@ class Client(SockStreamConnection):
             self.info(f"Status: Connected") # Prints connected to server
             
             thread = threading.Thread(target=self.handle_server) # Creates a new thread for this specific connection, with handle_server()
+            thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
             thread.start() # Starts thread
         else:
             self.warn(f"Error: Cannot initiate a connection because client already connected") # Error
