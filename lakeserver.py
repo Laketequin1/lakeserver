@@ -206,6 +206,7 @@ class Server(SockStreamConnection):
     def handle_client(self, client_conn, client_addr): # Given a thread for each connection, gets the clients IP
         self.client_data[client_addr] = "" # Adds this client to the client_data list with no data
         
+        client_message = ""
         connected = True
         while connected:
             if self.do_shutdown: # If server shutting down
@@ -332,6 +333,7 @@ class Client(SockStreamConnection):
         self.server_conn.send(encoded_message) # Sends the message in encoded format
     
     def handle_server(self):
+        server_message = ""
         connected = True
         while connected:
             
