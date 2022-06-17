@@ -93,14 +93,20 @@ class Server(SockStreamConnection):
         self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
         self.ADDR = (self.SERVER_IP, self.PORT) #Server address
         
+        self.data = {'commands':[], 'data':""} # Stores the commands and data that will be sent to all computers
+        self.client_data = {} # Stores the data recieved from every connection
+        self.active_clients = 0 # Number of active client connections
+        
         self.active = False # Server currently not active
+        self.do_shutdown = False # Set shutdown to False
+        self.accepting_clients = False # Not accepting clients
         
         self.enable_outputs(outputs_enabled) # Outputs active
         
     ##### -- Server Handling -- #####
     
     def start(self, start_accept_clients=True):
-        if not self.active:
+        if not self.active and self.server_addr_avalible(): # Check if server not active and not connected
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allows server to be reused after shutdown
             self.server.bind(self.ADDR) # Binds address to server
@@ -121,7 +127,10 @@ class Server(SockStreamConnection):
                 self.accept_clients() # Starts accepting clients to join server
         
         else:
-            self.warn(f"Error: Server is currently active, shutdown the server before starting")
+            if self.active:
+                self.warn(f"Error: Server is currently active, shutdown the server before starting")
+            else:
+                self.warn(f"Error: Server is currently active in other code on computer, shutdown the other server before starting")
     
     def accept_clients(self):
         if not self.do_shutdown and not self.accepting_clients: # If server not shutting down and server not accepting clients
@@ -155,14 +164,25 @@ class Server(SockStreamConnection):
         self.info(f"New Connections: Deny") # Print that connection handler shutdown
     
     def handle_shutdown(self):
-        while True: # Loop forever
-            if self.active_clients == 0: # If no more clients connected
-                self.server.close() # Close server
-                self.active = False # Server closed
-                
-                break # End thread
-        
-        self.info(f"Status: Shutdown") # Server shutdown
+        if self.active:
+            while True: # Loop forever
+                if self.active_clients == 0: # If no more clients connected
+                    self.server.close() # Close server
+                    self.active = False # Server closed
+                    
+                    break # End thread
+            
+            self.info(f"Status: Shutdown") # Server shutdown
+        else:
+            self.warn(f"Error: Could not shutdown server as it is not online") # Error
+    
+    def server_addr_avalible(self): # Check if ip and port is already connected to a server
+        try: # Will cause error if no external server
+            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Creates server on "INET", and sock stream means we are streaming data
+            server.connect(self.ADDR) # Connect to other server
+            return False
+        except ConnectionRefusedError: # Could not find server (good)
+            return True
     
     ##### -- Client Handling -- #####
     
@@ -192,16 +212,14 @@ class Server(SockStreamConnection):
                 self.add_command("disconnect") # Add command to data
                 connected = False # End thread
             
-            try:
+            try: # Can cause error
                 self.send_message(f"{self.data}", client_conn) # Sends message with server data
-            except ConnectionResetError: # If trying to send message returns it is not active
-                self.warn("Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
-                connected = False # End thread
-            
-            try:
                 client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
-            except ConnectionResetError: # If trying to recieve message returns it is not active
-                self.warn("Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
+            except ConnectionResetError: # If trying to send/recieve message returns it is not active
+                self.warn(f"Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
+                connected = False # End thread
+            except ConnectionAbortedError: # If trying to send/recieve message returns it is not active
+                self.warn(f"Error: Client disconnected without commanding disconnect. Disconnecting client.") # Error
                 connected = False # End thread
             
             if client_message: # If message recieved has a value
@@ -317,15 +335,16 @@ class Client(SockStreamConnection):
         connected = True
         while connected:
             
-            server_message = self.recieve_message() # Waits to recieve message
+            try: # Recieve can cause error
+                server_message = self.recieve_message() # Waits to recieve message
+            except ConnectionResetError: # If trying to recieve message returns it is not active
+                self.warn(f"Error: Server disconnected without commanding disconnect. Disconnecting client.") # Error
+                self.connected = False # End thread
             
             if server_message: # If message recieved has a value
                 for command in server_message['commands']: # Go through every command
                     if command == "disconnect": # If command disconnect
-                        self.add_command("disconnect") # Add command sending to server
-                        connected = False # End thread
-                        
-                        self.info(f"Status: Disconnecting") # Print client is disconnecting
+                        self.do_disconnect = True # Disconnect
                         
                 self.server_data = self.eval_message(server_message['data']) # Store server data as a dict
             
@@ -335,7 +354,12 @@ class Client(SockStreamConnection):
                 
                 self.info(f"Status: Disconnecting") # Print client is disconnecting
             
-            self.send_message(f"{self.data}") # Sends message data
+            try: # Send can cause error
+                self.send_message(f"{self.data}") # Sends message data
+            except ConnectionResetError: # If trying to recieve message returns it is not active
+                self.warn(f"Error: Server disconnected without commanding disconnect. Disconnecting client.") # Error
+                self.info(f"Status: Disconnecting") # Print client is disconnecting
+                self.connected = False # End thread
         
         self.active = False # Disconnected
         self.info(f"Status: Disconnected") # Print client has disconnected

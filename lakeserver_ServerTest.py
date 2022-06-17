@@ -33,7 +33,7 @@ def main():
     for x in range(12): # Increment x
         client1.set_data(x) # Set client data to x
         print("Server data:", main_server.get_client_data()) # Display server data for all clients
-        time.sleep(0.2)
+        time.sleep(0.4)
 
     time.sleep(1)
     print("\n")
@@ -58,10 +58,12 @@ def main():
     print("Server data:", main_server.get_client_data()) # Display server data for all clients
     
     time.sleep(0.1)
+    print("\n")
     
     client1.disconnect() # Disconnect client one
     
     time.sleep(0.1)
+    print("\n")
     
     print("Server data:", main_server.get_client_data()) # Display server data for all clients
     
