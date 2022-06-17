@@ -276,7 +276,7 @@ class Client(SockStreamConnection):
         self.ADDR = (self.SERVER_IP, self.PORT) # Server address
         
         self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
-        self.server_data = "" # Stores the data recieved from the server
+        self.server_data = {} # Stores the data recieved from the server
 
         self.active = False # Client not connected
         self.do_disconnect = False # Not disconnected
@@ -290,8 +290,10 @@ class Client(SockStreamConnection):
         if not self.active: # If not already connected
             self.server_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Connects client to INET, streaming data
             
+            connected_to_server = False # Before trying to connect to server
             try:
                 self.server_conn.connect(self.ADDR) # Binds connected address to above
+                connected_to_server = True # Managed to connect to server
             except ConnectionRefusedError: # Could not connect to server as it will not accept client
                 self.warn(f"Error: Could not connect to server as it is not accepting clients") # Error
             except TimeoutError: # Server does not exist
@@ -299,17 +301,18 @@ class Client(SockStreamConnection):
             except socket.gaierror: # Weird error - not address
                 self.warn(f"Error: Could not connect to server as address supplied is not valid") # Error
             
-            self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
-            self.server_data = "" # Stores the data recieved from the server
+            if connected_to_server:
+                self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
+                self.server_data = {} # Stores the data recieved from the server
 
-            self.active = True # Connected to server
-            self.do_disconnect = False # Not disconnected
-            
-            self.info(f"Status: Connected") # Prints connected to server
-            
-            thread = threading.Thread(target=self.handle_server) # Creates a new thread for this specific connection, with handle_server()
-            thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
-            thread.start() # Starts thread
+                self.active = True # Connected to server
+                self.do_disconnect = False # Not disconnected
+                
+                self.info(f"Status: Connected") # Prints connected to server
+                
+                thread = threading.Thread(target=self.handle_server) # Creates a new thread for this specific connection, with handle_server()
+                thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
+                thread.start() # Starts thread
         else:
             self.warn(f"Error: Cannot initiate a connection because client already connected") # Error
     
