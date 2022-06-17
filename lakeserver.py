@@ -165,6 +165,7 @@ class Server(SockStreamConnection):
     
     def handle_shutdown(self):
         if self.active:
+            self.info(f"Status: Starting Shutdown") # Server shutdown
             while True: # Loop forever
                 if self.active_clients == 0: # If no more clients connected
                     self.server.close() # Close server
@@ -242,8 +243,6 @@ class Server(SockStreamConnection):
     def shutdown(self): # Disconnect clients and shutdown server
         self.do_shutdown = True # Set shutdown to true
         
-        self.info(f"Status: Starting Shutdown") # Prints message letting user know shutdown has started
-        
         thread = threading.Thread(target=self.handle_shutdown) # Creates a new thread for this specific connection, with handle_client()
         thread.daemon = True  # Dies when main thread (only non-daemon thread) exits
         thread.start() # Starts thread
@@ -297,6 +296,8 @@ class Client(SockStreamConnection):
                 self.warn(f"Error: Could not connect to server as it is not accepting clients") # Error
             except TimeoutError: # Server does not exist
                 self.warn(f"Error: Could not connect to server as it does not exist") # Error
+            except socket.gaierror: # Weird error - not address
+                self.warn(f"Error: Could not connect to server as address supplied is not valid") # Error
             
             self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
             self.server_data = "" # Stores the data recieved from the server
@@ -341,7 +342,7 @@ class Client(SockStreamConnection):
                 server_message = self.recieve_message() # Waits to recieve message
             except ConnectionResetError: # If trying to recieve message returns it is not active
                 self.warn(f"Error: Server disconnected without commanding disconnect. Disconnecting client.") # Error
-                self.connected = False # End thread
+                break # Leave loop
             
             if server_message: # If message recieved has a value
                 for command in server_message['commands']: # Go through every command
@@ -361,7 +362,7 @@ class Client(SockStreamConnection):
             except ConnectionResetError: # If trying to recieve message returns it is not active
                 self.warn(f"Error: Server disconnected without commanding disconnect. Disconnecting client.") # Error
                 self.info(f"Status: Disconnecting") # Print client is disconnecting
-                self.connected = False # End thread
+                break # Leave loop
         
         self.active = False # Disconnected
         self.info(f"Status: Disconnected") # Print client has disconnected
