@@ -17,6 +17,21 @@ class SockStreamConnection:
                 pass # Continue to return empty
         return "" # Return empty
 
+    def post_recieve_update(self, message): # Runs the function for after recieved a message, needs to take the message variable, and return final changed data
+        if callable(self.post_recieve_func): # If variable a function
+            try:
+                return self.post_recieve_func(self, message) # Run function
+            except Exception as e:
+                self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} returned the error {e}") # Error
+        return message # Return origional
+        
+    def pre_send_update(self): # Runs the function for before sending a messgae
+        if callable(self.pre_send_func): # If variable a function
+            try:
+                self.pre_send_func(self) # Run function
+            except Exception as e:
+                self.warn(f"Error: Pre senf function {self.post_recieve_func.__name__} returned the error {e}") # Error
+    
     ### -- Print -- ###
     
     def warn(self, message): # Displays a warning message (ususally errors)
@@ -41,6 +56,24 @@ class SockStreamConnection:
     
     def remove_all_commands(self): # Remove all commands that will be sent
         self.data['commands'] = []
+    
+    def set_post_recieve_func(self, func): # Set post_recieve_func to a function
+        if callable(func): # If a function
+            self.post_recieve_func = func # Set to function
+        else:
+            self.warn("Error: Variable supplied for was not a function") # Error
+    
+    def remove_post_recieve_func(self): # Remove post_recieve_func
+        self.post_recieve_func = None # Set to None
+        
+    def set_pre_send_func(self, func): # Set pre_send_func to a function
+        if callable(func): # If a function
+            self.pre_send_func = func # Set to function
+        else:
+            self.warn("Error: Variable supplied for was not a function") # Error
+    
+    def remove_pre_send_func(self): # Remove pre_send_func
+        self.pre_send_func = None # Set to None
     
     def enable_outputs(self, boolean): # Set outputs for warnings and info to active or inactive
         if type(boolean) == bool: # If input bool
@@ -85,13 +118,16 @@ class Server(SockStreamConnection):
     
     ##### -- Init -- #####
     
-    def __init__(self, port, outputs_enabled=True, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
+    def __init__(self, port, outputs_enabled=True, header=64, format='utf-8', pre_send_func=None, post_recieve_func=None): #  Default: header is 64 bytes long, format is utf-8, no functions
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
         self.FORMAT = format # Format of text being sent
         
         self.SERVER_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
         self.ADDR = (self.SERVER_IP, self.PORT) #Server address
+        
+        self.pre_send_func = pre_send_func # By default no function being run before send
+        self.post_recieve_func = post_recieve_func # By default no function being run after recieve
         
         self.data = {'commands':[], 'data':""} # Stores the commands and data that will be sent to all computers
         self.client_data = {} # Stores the data recieved from every connection
@@ -214,6 +250,8 @@ class Server(SockStreamConnection):
                 self.add_command("disconnect") # Add command to data
                 connected = False # End thread
             
+            self.pre_send_update() # Handle server data with function
+            
             try: # Can cause error
                 self.send_message(f"{self.data}", client_conn) # Sends message with server data
                 client_message = self.recieve_message(client_conn) # Runs recieve message function, and gets message
@@ -225,6 +263,8 @@ class Server(SockStreamConnection):
                 connected = False # End thread
             
             if client_message: # If message recieved has a value
+                client_message = self.post_recieve_update(client_message) # Handle client messsage with function
+                
                 for command in client_message['commands']: # Go through every command
                     if command == "disconnect": # If command disconnect
                         connected = False # End thread
@@ -266,7 +306,7 @@ class Client(SockStreamConnection):
     
     ##### -- Init -- #####
     
-    def __init__(self, server_ip, port, outputs_enabled=True, header=64, format='utf-8'): #  Default: header is 64 bytes long, format is utf-8
+    def __init__(self, server_ip, port, outputs_enabled=True, header=64, format='utf-8', pre_send_func=None, post_recieve_func=None): #  Default: header is 64 bytes long, format is utf-8, no functions
         self.SERVER_IP = server_ip # The IP of the host (public IP for non-lan, private IPV4 for lan)
         self.PORT = port # Port
         self.HEADER = header # Size of header before data sent
@@ -274,6 +314,9 @@ class Client(SockStreamConnection):
         
         self.CLIENT_IP = socket.gethostbyname(socket.gethostname()) # Computer IP (LAN)
         self.ADDR = (self.SERVER_IP, self.PORT) # Server address
+        
+        self.pre_send_func = pre_send_func # By default no function being run before send
+        self.post_recieve_func = post_recieve_func # By default no function being run after recieve
         
         self.data = {'commands':[], 'data':""} # Stores the commands and data being sent to server
         self.server_data = {} # Stores the data recieved from the server
@@ -340,7 +383,6 @@ class Client(SockStreamConnection):
         server_message = ""
         connected = True
         while connected:
-            
             try: # Recieve can cause error
                 server_message = self.recieve_message() # Waits to recieve message
             except ConnectionResetError: # If trying to recieve message returns it is not active
@@ -348,6 +390,8 @@ class Client(SockStreamConnection):
                 break # Leave loop
             
             if server_message: # If message recieved has a value
+                server_message = self.post_recieve_update(server_message) # Handle server messsage with function
+                
                 for command in server_message['commands']: # Go through every command
                     if command == "disconnect": # If command disconnect
                         self.do_disconnect = True # Disconnect
@@ -359,6 +403,8 @@ class Client(SockStreamConnection):
                 connected = False # End thread
                 
                 self.info(f"Status: Disconnecting") # Print client is disconnecting
+            
+            self.pre_send_update() # Handle server data with function
             
             try: # Send can cause error
                 self.send_message(f"{self.data}") # Sends message data
