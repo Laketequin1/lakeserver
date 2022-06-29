@@ -11,29 +11,66 @@ class SockStreamConnection:
     
     def eval_message(self, message):
         """
-        Attempts to return the eval of a string. Return None if string is not evalable.
+        Safely return the eval of a string.
         
-            Parameters:
-                    message (string): A string evalable
+        The function attempts to safely return the eval of a string with ast.literal_eval. If the string can not be evaled due to a ValueError then call self.warn and return None.
+        
+        This is useful for converting the string with a dictionary inside to just a dictionary, without causing any security risks.
+    
+        Parameters
+        ----------
+        message : string
+            A evaluable string.
 
-            Returns:
-                    binary_sum (str): Binary string of the sum of a and b
+        Returns
+        -------
+        any
+            The result of the evaled string.
+            
+        ** ValueError **
+        If string cannot be evaled due to ValueError raised:
+        
+        NoneType
+            None.
+            
+        Examples
+        --------
+        >>> message = SockStreamConnection.eval_message("{'one':1, 'two':2, 'three':3}")
+        >>> print(message)
+        {'one':1, 'two':2, 'three':3}
+
+        ** ValueError **
+        If string cannot be evaled due to ValueError raised:
+        
+        >>> message = SockStreamConnection.eval_message("{'one':1, 'two':2, 'three':3}")
+        [SockStreamConnection WARNING] Error: Unable to eval message recieved
+        >>> print(message)
+        None
         """
         if message:
             try:
-                eval_message = ast.literal_eval(message)
-                return eval_message
+                return ast.literal_eval(message)
             except ValueError:
                 self.warn("Error: Unable to eval message recieved")
         return None
 
     def post_recieve_update(self, message): # Runs the function for after recieved a message, needs to take the message variable, and return final changed data
-        if callable(self.post_recieve_func): # If variable a function
+        """
+        Execute the post recieve function.
+        
+        Executes the post recieve function if it is callable. The post recieve function takes the variable message when run. Any errors the function throws are caught, then calls self.warn with the error. The post recieve function returns a new message which is then returned.
+        
+        This is useful to run after recieving a message a connection has sent to the receiver, to easily and repetively change the message recieved.
+        
+        
+        """
+        if callable(self.post_recieve_func):
             try:
-                return self.post_recieve_func(self, message) # Run function
+                return self.post_recieve_func(self, message)
             except Exception as e:
-                self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} returned the error {e}") # Error
-        return message # Return origional
+                self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} returned the error {e}")
+        self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} is not callable, removing post recieve function")
+        return message
         
     def pre_send_update(self): # Runs the function for before sending a messgae
         if callable(self.pre_send_func): # If variable a function
