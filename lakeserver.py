@@ -47,7 +47,7 @@ class SockStreamConnection:
         >>> print(message)
         None
         """
-        if message:
+        if type(message) == str:
             try:
                 return ast.literal_eval(message)
             except ValueError:
@@ -58,18 +58,56 @@ class SockStreamConnection:
         """
         Execute the post recieve function.
         
-        Executes the post recieve function if it is callable. The post recieve function takes the variable message when run. Any errors the function throws are caught, then calls self.warn with the error. The post recieve function returns a new message which is then returned.
+        Executes the post recieve function if it is callable. The post recieve function takes the variable 'message' when run. Any errors the function throws are caught, then calls self.warn with the error. The post recieve function returns a new message which is then returned.
         
         This is useful to run after recieving a message a connection has sent to the receiver, to easily and repetively change the message recieved.
         
+        Parameters
+        ----------
+        message : string
+            The message recieved that will be changed
+
+        Returns
+        -------
+        any
+            The final changed message outputed by the post recieve function
+            
+        ** Exception **
+        If if the post recieve function raises an error:
         
+        message : any
+            The origional message before changes
+            
+        Examples
+        --------
+        >>> import lakeserver
+        >>> main_server = lakeserver.Server(5050)
+        >>> def my_func(class_self, message):
+        ...     return message.strip()
+        >>> main_server.set_post_recieve_func(my_func)
+        >>> message_recieved = "Hello World  "
+        >>> main_server.post_recieve_update(message_recieved)
+        'Hello World'
+
+        ** Exception **
+        If if the post recieve function raises an error:
+        
+        >>> import lakeserver
+        >>> def my_func(class_self, message):
+        ...     raise Exception("An Error")
+        >>> main_server.set_post_recieve_func(my_func)
+        >>> message_recieved = "Hello World  "
+        >>> main_server.post_recieve_update(message_recieved)
+        [Server WARNING] Error: Post recieve function 'my_func' returned the error 'An Error'
+        'Hello World  '
         """
         if callable(self.post_recieve_func):
             try:
                 return self.post_recieve_func(self, message)
             except Exception as e:
-                self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} returned the error {e}")
-        self.warn(f"Error: Post recieve function {self.post_recieve_func.__name__} is not callable, removing post recieve function")
+                self.warn(f"Error: Post recieve function '{self.post_recieve_func.__name__}' returned the error '{e}'")
+                return message
+        self.warn(f"Error: Post recieve function '{self.post_recieve_func.__name__}' is not callable, removing post recieve function")
         return message
         
     def pre_send_update(self): # Runs the function for before sending a messgae
