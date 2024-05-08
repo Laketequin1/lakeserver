@@ -66,7 +66,7 @@ def main():
     
     time.sleep(0.1)
 
-    print("\n---Client 1 disconnects---")    
+    print("\n---Client1 disconnects---")    
     client1.disconnect() # Disconnect client one
     
     time.sleep(0.1)

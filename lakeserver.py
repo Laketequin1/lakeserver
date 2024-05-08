@@ -133,7 +133,7 @@ class SockStreamConnection:
     def info(self, message): # Displays an informational message
         if self.show_info == True: # If info messages active
             self.screen_lock.acquire() # Gain control over printing text
-            print(f"[{self.__class__.__name__} INFO] {message}") # Print warning message
+            print(f"[{self.__class__.__name__} INFO] {message}") # Print info message
             self.screen_lock.release() # Release control over printing text
     
     ### -- Set -- ###
@@ -656,6 +656,9 @@ class Client(SockStreamConnection):
     
     def get_commands(self): # Return client commands
         return self.data['commands']
+    
+    def get_address(self): # Return client address
+        return self.ADDR
     
     def get_ip(self): # Return client IP
         return self.CLIENT_IP
