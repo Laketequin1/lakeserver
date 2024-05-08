@@ -13,7 +13,7 @@ def main():
  #     # #      #   #   #  #  #      #   #        #    #      #    #   #   
   #####  ###### #    #   ##   ###### #    #       #    ######  ####    #   \n""")
 
-    print("This is example python code for my server I created using socket. Made by Tequin Lake. \n")
+    print("This is some example code for my server I created using socket. Made by Tequin Lake. \n")
     
     time.sleep(1)
 
@@ -35,7 +35,7 @@ def main():
 
     time.sleep(1)
 
-    print("\n---Sending/recieving client data---")
+    print("\n---Sending/receiving client data---")
     
     for x in range(12): # Increment x
         client1.set_data(math.factorial(x)) # Set client data to factorial of x
@@ -49,7 +49,7 @@ def main():
     
     time.sleep(1)
 
-    print("\n---Restartng server---")
+    print("\n---Restarting server---")
     main_server.start() # Start server
     
     time.sleep(1)
@@ -90,11 +90,11 @@ def main():
     main_server.enable_info(True) # Allow [INFO] tags to appear, do not effect [WARNING] tags
     
     time.sleep(1)
-    print("\n---Disconnecting all clients and shutting down sever---")
+    print("\n---Disconnecting all clients and shutting down server---")
     main_server.shutdown() # Shutdown server
     
     time.sleep(1)
-    input("\nPress Enter to close window...") # Wait for user to close window
+    input("\nPress Enter to close...") # Wait for user to close window
     
     
 if __name__ == "__main__": # Fancy code
