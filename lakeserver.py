@@ -9,6 +9,10 @@ class SockStreamConnection:
     
     ##### -- Message Handling -- #####
     
+    @classmethod
+    def do_nothing():
+        pass
+
     def eval_message(self, message):
         """
         Safely return the eval of a string.
@@ -47,7 +51,7 @@ class SockStreamConnection:
         >>> print(message)
         None
         """
-        if type(message) == str:
+        if type(message) == str and message:
             try:
                 return ast.literal_eval(message)
             except ValueError:
@@ -107,7 +111,8 @@ class SockStreamConnection:
             except Exception as e:
                 self.warn(f"Error: Post recieve function '{self.post_recieve_func.__name__}' returned the error '{e}'")
                 return message
-        self.warn(f"Error: Post recieve function '{self.post_recieve_func.__name__}' is not callable, removing post recieve function")
+            
+        #self.warn(f"Error: Post recieve function is not callable")
         return message
         
     def pre_send_update(self): # Runs the function for before sending a messgae
@@ -115,7 +120,7 @@ class SockStreamConnection:
             try:
                 self.pre_send_func(self) # Run function
             except Exception as e:
-                self.warn(f"Error: Pre senf function {self.post_recieve_func.__name__} returned the error {e}") # Error
+                self.warn(f"Error: Pre send function {self.post_recieve_func.__name__} returned the error {e}") # Error
     
     ### -- Print -- ###
     
@@ -394,9 +399,13 @@ class Server(SockStreamConnection):
         encoded_message_length = len(encoded_message) # Gets encoded message length
         header_message = str(encoded_message_length).encode(self.FORMAT) # Set header message to the string of the lenght and incode with format
         header_message += b' ' * (self.HEADER - len(header_message)) # Adds blanks to the end to make the header_message the right size
-        client_conn.send(header_message) # Header sends the message length of main message
-        client_conn.send(encoded_message) # Sends the message in encoded format
-    
+        
+        try:
+            client_conn.send(header_message) # Header sends the message length of main message
+            client_conn.send(encoded_message) # Sends the message in encoded format
+        except BrokenPipeError:
+            self.warn("Error: Message send failed - lost connection to server")
+
     def handle_client_echo(self, client_conn, client_addr): # Given a thread for each connection, gets the clients IP, messages client through echos
         self.client_data[client_addr] = "" # Adds this client to the client_data list with no data
         self.client_conn[client_addr] = client_conn # Stores connection of client
